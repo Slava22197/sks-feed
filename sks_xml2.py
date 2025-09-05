@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# sks_xml.py
+# sks_xml2.py
 # Формує products.xml з SKS API
 
 import os
@@ -17,6 +17,7 @@ API_URL = os.environ.get("API_URL", "http://sks-service.org/api/v2.0/")
 
 # ---- Хелпери ----
 def now_str():
+    # важливо! беремо час в UTC, інакше підпис не співпаде на сервері
     return datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
 
 def make_signature(typeRequest, dateTime):
@@ -32,7 +33,9 @@ def api_call(typeRequest, timeout=30):
         "signature": make_signature(typeRequest, dateTime),
     }
     headers = {"Accept": "application/json", "Content-Type": "application/json; charset=UTF-8"}
+    print(f"--> API call: {typeRequest} @ {dateTime}")
     r = requests.post(API_URL, json=data, headers=headers, timeout=timeout)
+    print(f"<-- HTTP {r.status_code}")
     if r.status_code != 200:
         raise Exception(f"HTTP {r.status_code}: {r.text}")
     j = r.json()
@@ -42,15 +45,21 @@ def api_call(typeRequest, timeout=30):
 
 def get_categories():
     # пробуємо обидва варіанти (лат. і кир. С)
-    for t in ("req\u0421ategories", "reqCategories"):
+    for t in ("reqCategories", "req\u0421ategories"):
         try:
             return api_call(t).get("categories", [])
-        except Exception:
-            continue
+        except Exception as e:
+            print(f"⚠️ {t} failed: {e}")
     return []
 
 def get_products():
-    return api_call("reqAllProducts").get("products", [])
+    # пробуємо обидва варіанти (лат. і кир. с у слові Products)
+    for t in ("reqAllProducts", "reqAllProdu\u0441ts"):
+        try:
+            return api_call(t).get("products", [])
+        except Exception as e:
+            print(f"⚠️ {t} failed: {e}")
+    return []
 
 def extract_all_images(prod, max_extra=10):
     imgs = []
@@ -201,4 +210,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
