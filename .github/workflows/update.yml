@@ -30,7 +30,7 @@ jobs:
           SKS_CLIENTID: ${{ secrets.SKS_CLIENTID }}
           IMG_BASE: ${{ secrets.IMG_BASE }}
         run: |
-          python sks_xml.py
+          python sks_xml2.py
 
       - name: Commit products.xml if changed
         run: |
