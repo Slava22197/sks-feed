@@ -17,7 +17,7 @@ API_URL = os.environ.get("API_URL", "http://sks-service.org/api/v2.0/")
 
 # ---- Хелпери ----
 def now_str():
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    return datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
 
 def make_signature(typeRequest, dateTime):
     raw = f"{SKS_PASSWORD}{SKS_CLIENTID}{typeRequest}{dateTime}{SKS_PASSWORD}"
@@ -201,3 +201,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
