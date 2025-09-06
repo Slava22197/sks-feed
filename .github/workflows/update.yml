@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "0 3 * * *"   # щодня о 03:00 UTC
   workflow_dispatch:      # можливість запускати вручну
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,7 +22,9 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip && pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
       - name: Run feed script
         env:
@@ -31,7 +34,7 @@ jobs:
         run: |
           python sks_xml2.py
 
-           - name: Commit products.xml if changed
+      - name: Commit products.xml if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -42,4 +45,3 @@ jobs:
           else
             echo "No changes to commit"
           fi
-
