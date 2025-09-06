@@ -3,15 +3,21 @@ import hashlib
 import base64
 import datetime
 import xml.etree.ElementTree as ET
+import pytz
 
 # --- Параметри API (відкрито) ---
 URL = "http://sks-service.org/api/v2.0/"
 password = "e887471317b2554442c165557e442093"
 clientID = "00048"
 
+# --- Хелпер: отримати поточний час у Києві ---
+def get_datetime():
+    kyiv_tz = pytz.timezone("Europe/Kyiv")
+    return datetime.datetime.now(kyiv_tz).strftime("%Y-%m-%d %H:%M")
+
 # --- Хелпер: запит до API ---
 def api_call(typeRequest):
-    dateTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    dateTime = get_datetime()
     signature_raw = password + clientID + typeRequest + dateTime + password
     signature = base64.b64encode(hashlib.sha1(signature_raw.encode("utf-8")).digest()).decode()
 
@@ -82,7 +88,7 @@ def apply_markup(price):
 
 # --- Формування XML ---
 def write_xml(cats, prods):
-    yml = ET.Element("yml_catalog", date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+    yml = ET.Element("yml_catalog", date=get_datetime())
     shop = ET.SubElement(yml, "shop")
 
     categories = ET.SubElement(shop, "categories")
