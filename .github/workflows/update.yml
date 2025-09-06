@@ -3,7 +3,7 @@ name: Update XML feed
 on:
   schedule:
     - cron: "0 3 * * *"   # щодня о 03:00 UTC
-  workflow_dispatch:      # можливість запускати вручну
+  workflow_dispatch:      # запуск вручну
 
 jobs:
   build:
@@ -27,12 +27,7 @@ jobs:
           pip install requests
 
       - name: Run feed script
-        env:
-          SKS_PASSWORD: ${{ secrets.SKS_PASSWORD }}
-          SKS_CLIENTID: ${{ secrets.SKS_CLIENTID }}
-          IMG_BASE: ${{ secrets.IMG_BASE }}
-        run: |
-          python sks_xml2.py
+        run: python sks_xml2.py
 
       - name: Commit products.xml if changed
         run: |
