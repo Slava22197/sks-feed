@@ -2,26 +2,34 @@
 # sks_xml.py
 # Формує products.xml з SKS API
 
-import os
 import requests
 import hashlib
 import base64
 import datetime
 import xml.etree.ElementTree as ET
+import pytz
 
 # ---- Конфіг ----
-SKS_PASSWORD = os.environ.get("SKS_PASSWORD", "e887471317b2554442c165557e442093")
-SKS_CLIENTID = os.environ.get("SKS_CLIENTID", "00048")
-IMG_BASE = os.environ.get("IMG_BASE", "https://imga.sks-service.org/new/")
-API_URL = os.environ.get("API_URL", "http://sks-service.org/api/v2.0/")
+SKS_PASSWORD = "e887471317b2554442c165557e442093"
+SKS_CLIENTID = "00048"
+IMG_BASE = "https://imga.sks-service.org/new/"
+API_URL = "http://sks-service.org/api/v2.0/"
 
 # ---- Хелпери ----
 def now_str():
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    kyiv_tz = pytz.timezone("Europe/Kyiv")
+    return datetime.datetime.now(kyiv_tz).strftime("%Y-%m-%d %H:%M")
 
 def make_signature(typeRequest, dateTime):
     raw = f"{SKS_PASSWORD}{SKS_CLIENTID}{typeRequest}{dateTime}{SKS_PASSWORD}"
-    return base64.b64encode(hashlib.sha1(raw.encode("utf-8")).digest()).decode()
+    signature = base64.b64encode(hashlib.sha1(raw.encode("utf-8")).digest()).decode()
+
+    # DEBUG
+    print("DEBUG: dateTime =", dateTime)
+    print("DEBUG: signature_raw =", raw)
+    print("DEBUG: signature =", signature)
+
+    return signature
 
 def api_call(typeRequest, timeout=30):
     dateTime = now_str()
@@ -41,13 +49,7 @@ def api_call(typeRequest, timeout=30):
     return j
 
 def get_categories():
-    # пробуємо обидва варіанти (лат. і кир. С)
-    for t in ("req\u0421ategories", "reqCategories"):
-        try:
-            return api_call(t).get("categories", [])
-        except Exception:
-            continue
-    return []
+    return api_call("reqCategories").get("categories", [])
 
 def get_products():
     return api_call("reqAllProducts").get("products", [])
