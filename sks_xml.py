@@ -28,6 +28,7 @@ def make_signature(typeRequest, dateTime):
     print("DEBUG: dateTime =", dateTime)
     print("DEBUG: signature_raw =", raw)
     print("DEBUG: signature =", signature)
+    print("DEBUG: typeRequest =", typeRequest)
 
     return signature
 
@@ -203,3 +204,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
