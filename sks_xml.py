@@ -7,7 +7,6 @@ import hashlib
 import base64
 import datetime
 import xml.etree.ElementTree as ET
-import pytz
 
 # ---- Конфіг ----
 SKS_PASSWORD = "e887471317b2554442c165557e442093"
@@ -17,20 +16,16 @@ API_URL = "http://sks-service.org/api/v2.0/"
 
 # ---- Хелпери ----
 def now_str():
-    kyiv_tz = pytz.timezone("Europe/Kyiv")
-    return datetime.datetime.now(kyiv_tz).strftime("%Y-%m-%d %H:%M")
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 def make_signature(typeRequest, dateTime):
     raw = f"{SKS_PASSWORD}{SKS_CLIENTID}{typeRequest}{dateTime}{SKS_PASSWORD}"
-    signature = base64.b64encode(hashlib.sha1(raw.encode("utf-8")).digest()).decode()
-
-    # DEBUG
+    sig = base64.b64encode(hashlib.sha1(raw.encode("utf-8")).digest()).decode()
     print("DEBUG: dateTime =", dateTime)
     print("DEBUG: typeRequest =", typeRequest)
     print("DEBUG: signature_raw =", raw)
-    print("DEBUG: signature =", signature)
-
-    return signature
+    print("DEBUG: signature =", sig)
+    return sig
 
 def api_call(typeRequest, timeout=30):
     dateTime = now_str()
@@ -41,17 +36,19 @@ def api_call(typeRequest, timeout=30):
         "signature": make_signature(typeRequest, dateTime),
     }
     headers = {"Accept": "application/json", "Content-Type": "application/json; charset=UTF-8"}
+    print(f"--> API call: {typeRequest} @ {dateTime}")
     r = requests.post(API_URL, json=data, headers=headers, timeout=timeout)
+    print("<-- HTTP", r.status_code)
     if r.status_code != 200:
         raise Exception(f"HTTP {r.status_code}: {r.text}")
     j = r.json()
     if j.get("state") != "SUCCESS":
+        print(f"⚠️ {typeRequest} failed: API FAIL for {typeRequest}: {j}")
         raise Exception(f"API FAIL for {typeRequest}: {j}")
     return j
 
-# ---- Категорії ----
 def get_categories():
-    for t in ("reqСategories", "reqCategories"):  # перша - кирилична «С», друга - латинська «C»
+    for t in ("reqСategories", "reqCategories"):  # кирилична С + латинська C
         try:
             return api_call(t).get("categories", [])
         except Exception as e:
@@ -59,44 +56,14 @@ def get_categories():
             continue
     return []
 
-# ---- Продукти ----
 def get_products():
-    for t in ("reqAllProduсts", "reqAllProducts"):  # перша - кирилична «с», друга - латинська «c»
+    for t in ("reqAllProducts", "reqAllProduсts"):  # латинська c + кирилична с
         try:
             return api_call(t).get("products", [])
         except Exception as e:
             print("DEBUG: fail with", t, e)
             continue
     return []
-
-# ---- Обробка картинок ----
-def extract_all_images(prod, max_extra=10):
-    imgs = []
-    base_url = prod.get("imageURL")
-    if base_url:
-        filename = base_url.strip().split("/")[-1]
-        imgs.append(IMG_BASE.rstrip("/") + "/" + filename)
-        if filename.lower().endswith(".jpg"):
-            base_no_ext = filename[:-4]
-            for i in range(1, max_extra + 1):
-                imgs.append(f"{IMG_BASE.rstrip('/')}/{base_no_ext}-{i}.jpg")
-    return imgs
-
-# ---- Націнка ----
-def calc_price(purchase):
-    p = float(purchase)
-    if p < 0.1: return p * 4.5
-    elif p < 0.3: return p * 3.3
-    elif p < 0.75: return p * 2.7
-    elif p < 2: return p * 1.85
-    elif p < 5: return p * 1.65
-    elif p < 10: return p * 1.55
-    elif p < 20: return p * 1.5
-    elif p < 30: return p * 1.43
-    elif p < 50: return p * 1.38
-    elif p < 75: return p * 1.35
-    elif p < 100: return p * 1.33
-    else: return p * 1.3
 
 # ---- XML ----
 def write_xml(categories, products, out_file="products.xml"):
@@ -130,68 +97,27 @@ def write_xml(categories, products, out_file="products.xml"):
     offers = ET.SubElement(shop, "offers")
     for prod in products:
         offer = ET.SubElement(offers, "offer", attrib={"id": str(prod.get("productID", ""))})
-
         ET.SubElement(offer, "name").text = str(prod.get("productNameUA") or prod.get("productName") or "")
 
-        # purchase and calculated price
         raw_price = str(prod.get("priceUSD") or "0").replace(",", ".")
         try:
             purchase_price = float(raw_price)
         except Exception:
             purchase_price = 0.0
         ET.SubElement(offer, "purchase_price").text = f"{purchase_price:.2f}"
-        ET.SubElement(offer, "price").text = f"{calc_price(purchase_price):.2f}"
+        ET.SubElement(offer, "price").text = f"{purchase_price:.2f}"
         ET.SubElement(offer, "currencyId").text = "USD"
 
-        # availability
         avail = str(prod.get("availability", "")).strip()
-        if avail in ("1", "2"):
-            ET.SubElement(offer, "available").text = "true"
-        else:
-            ET.SubElement(offer, "available").text = "false"
-
-        qty = "0"
-        if avail == "1": qty = "1"
-        elif avail == "2": qty = "100"
-        ET.SubElement(offer, "quantity").text = qty
-
-        # categoryId (тільки перша частина)
-        if prod.get("categoryID"):
-            cat_raw = str(prod.get("categoryID"))
-            if "/" in cat_raw:
-                cat_id = cat_raw.split("/")[0]
-            else:
-                cat_id = cat_raw
-            ET.SubElement(offer, "categoryId").text = cat_id
-
-        # vendor / article / model
-        if prod.get("brand") or prod.get("brandUA"):
-            ET.SubElement(offer, "vendor").text = str(prod.get("brandUA") or prod.get("brand"))
-        if prod.get("article"):
-            ET.SubElement(offer, "article").text = str(prod.get("article"))
-        if prod.get("vendorCode"):
-            ET.SubElement(offer, "model").text = str(prod.get("vendorCode"))
-        if prod.get("weight"):
-            ET.SubElement(offer, "weight").text = str(prod.get("weight"))
-
-        # images
-        for img in extract_all_images(prod, max_extra=10):
-            ET.SubElement(offer, "picture").text = img
-
-        # description
-        desc_parts = []
-        if prod.get("amountInPackage"):
-            desc_parts.append(f"Кількість в упаковці: {prod.get('amountInPackage')}")
-        if desc_parts:
-            ET.SubElement(offer, "description").text = " | ".join(desc_parts)
+        ET.SubElement(offer, "availability").text = avail
 
     tree = ET.ElementTree(root)
     tree.write(out_file, encoding="utf-8", xml_declaration=True)
     print(f"✅ Written {out_file}")
 
-# ---- Main ----
 def main():
-    cats, prods = [], []
+    cats = []
+    prods = []
     try:
         print("Отримую категорії...")
         cats = get_categories()
@@ -202,7 +128,6 @@ def main():
         prods = get_products()
     except Exception as e:
         print("Помилка продуктів:", e)
-        raise
     write_xml(cats, prods, out_file="products.xml")
 
 if __name__ == "__main__":
