@@ -3,7 +3,7 @@ name: Update XML feed
 on:
   schedule:
     - cron: "0 3 * * *"   # щодня о 03:00 UTC
-  workflow_dispatch:      # запуск вручну
+  workflow_dispatch:      # можливість запускати вручну
 
 jobs:
   build:
@@ -24,10 +24,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pytz
+          pip install requests
 
       - name: Run feed script
-        run: python sks_xml2.py
+        run: python sks_xml.py
 
       - name: Commit products.xml if changed
         run: |
