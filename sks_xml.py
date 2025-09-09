@@ -6,6 +6,7 @@ import requests
 import hashlib
 import base64
 import datetime
+import pytz
 import xml.etree.ElementTree as ET
 
 # ---- Конфіг ----
@@ -16,7 +17,8 @@ API_URL = "http://sks-service.org/api/v2.0/"
 
 # ---- Хелпери ----
 def now_str():
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    tz = pytz.timezone("Europe/Kyiv")
+    return datetime.datetime.now(tz).strftime("%Y-%m-%d %H:%M")
 
 def make_signature(typeRequest, dateTime):
     raw = f"{SKS_PASSWORD}{SKS_CLIENTID}{typeRequest}{dateTime}{SKS_PASSWORD}"
@@ -48,7 +50,7 @@ def api_call(typeRequest, timeout=30):
     return j
 
 def get_categories():
-    for t in ("reqСategories", "reqCategories"):  # кирилична С + латинська C
+    for t in ("reqСategories", "reqCategories"):  # кирилична + латинська
         try:
             return api_call(t).get("categories", [])
         except Exception as e:
@@ -57,7 +59,7 @@ def get_categories():
     return []
 
 def get_products():
-    for t in ("reqAllProducts", "reqAllProduсts"):  # латинська c + кирилична с
+    for t in ("reqAllProducts", "reqAllProduсts"):  # латинська + кирилична
         try:
             return api_call(t).get("products", [])
         except Exception as e:
