@@ -26,9 +26,9 @@ def make_signature(typeRequest, dateTime):
 
     # DEBUG
     print("DEBUG: dateTime =", dateTime)
+    print("DEBUG: typeRequest =", typeRequest)
     print("DEBUG: signature_raw =", raw)
     print("DEBUG: signature =", signature)
-    print("DEBUG: typeRequest =", typeRequest)
 
     return signature
 
@@ -49,12 +49,27 @@ def api_call(typeRequest, timeout=30):
         raise Exception(f"API FAIL for {typeRequest}: {j}")
     return j
 
+# ---- Категорії ----
 def get_categories():
-    return api_call("reqCategories").get("categories", [])
+    for t in ("reqСategories", "reqCategories"):  # перша - кирилична «С», друга - латинська «C»
+        try:
+            return api_call(t).get("categories", [])
+        except Exception as e:
+            print("DEBUG: fail with", t, e)
+            continue
+    return []
 
+# ---- Продукти ----
 def get_products():
-    return api_call("reqAllProducts").get("products", [])
+    for t in ("reqAllProduсts", "reqAllProducts"):  # перша - кирилична «с», друга - латинська «c»
+        try:
+            return api_call(t).get("products", [])
+        except Exception as e:
+            print("DEBUG: fail with", t, e)
+            continue
+    return []
 
+# ---- Обробка картинок ----
 def extract_all_images(prod, max_extra=10):
     imgs = []
     base_url = prod.get("imageURL")
@@ -67,33 +82,23 @@ def extract_all_images(prod, max_extra=10):
                 imgs.append(f"{IMG_BASE.rstrip('/')}/{base_no_ext}-{i}.jpg")
     return imgs
 
+# ---- Націнка ----
 def calc_price(purchase):
     p = float(purchase)
-    if p < 0.1:
-        return p * 4.5
-    elif p < 0.3:
-        return p * 3.3
-    elif p < 0.75:
-        return p * 2.7
-    elif p < 2:
-        return p * 1.85
-    elif p < 5:
-        return p * 1.65
-    elif p < 10:
-        return p * 1.55
-    elif p < 20:
-        return p * 1.5
-    elif p < 30:
-        return p * 1.43
-    elif p < 50:
-        return p * 1.38
-    elif p < 75:
-        return p * 1.35
-    elif p < 100:
-        return p * 1.33
-    else:
-        return p * 1.3
+    if p < 0.1: return p * 4.5
+    elif p < 0.3: return p * 3.3
+    elif p < 0.75: return p * 2.7
+    elif p < 2: return p * 1.85
+    elif p < 5: return p * 1.65
+    elif p < 10: return p * 1.55
+    elif p < 20: return p * 1.5
+    elif p < 30: return p * 1.43
+    elif p < 50: return p * 1.38
+    elif p < 75: return p * 1.35
+    elif p < 100: return p * 1.33
+    else: return p * 1.3
 
+# ---- XML ----
 def write_xml(categories, products, out_file="products.xml"):
     yml_date = now_str()
     root = ET.Element("yml_catalog", attrib={"date": yml_date})
@@ -138,7 +143,7 @@ def write_xml(categories, products, out_file="products.xml"):
         ET.SubElement(offer, "price").text = f"{calc_price(purchase_price):.2f}"
         ET.SubElement(offer, "currencyId").text = "USD"
 
-        # availability -> available (true/false per rule) and quantity
+        # availability
         avail = str(prod.get("availability", "")).strip()
         if avail in ("1", "2"):
             ET.SubElement(offer, "available").text = "true"
@@ -146,13 +151,11 @@ def write_xml(categories, products, out_file="products.xml"):
             ET.SubElement(offer, "available").text = "false"
 
         qty = "0"
-        if avail == "1":
-            qty = "1"
-        elif avail == "2":
-            qty = "100"
+        if avail == "1": qty = "1"
+        elif avail == "2": qty = "100"
         ET.SubElement(offer, "quantity").text = qty
 
-        # categoryId (тільки перша частина до "/")
+        # categoryId (тільки перша частина)
         if prod.get("categoryID"):
             cat_raw = str(prod.get("categoryID"))
             if "/" in cat_raw:
@@ -175,7 +178,7 @@ def write_xml(categories, products, out_file="products.xml"):
         for img in extract_all_images(prod, max_extra=10):
             ET.SubElement(offer, "picture").text = img
 
-        # description (мінімальна)
+        # description
         desc_parts = []
         if prod.get("amountInPackage"):
             desc_parts.append(f"Кількість в упаковці: {prod.get('amountInPackage')}")
@@ -186,9 +189,9 @@ def write_xml(categories, products, out_file="products.xml"):
     tree.write(out_file, encoding="utf-8", xml_declaration=True)
     print(f"✅ Written {out_file}")
 
+# ---- Main ----
 def main():
-    cats = []
-    prods = []
+    cats, prods = [], []
     try:
         print("Отримую категорії...")
         cats = get_categories()
@@ -204,4 +207,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
