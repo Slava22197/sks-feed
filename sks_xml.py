@@ -7,6 +7,7 @@ import hashlib
 import base64
 import datetime
 import pytz
+import time
 import xml.etree.ElementTree as ET
 
 # ---- Конфіг ----
@@ -49,6 +50,7 @@ def api_call(typeRequest, timeout=30):
         raise Exception(f"API FAIL for {typeRequest}: {j}")
     return j
 
+# ---- Категорії ----
 def get_categories():
     for t in ("reqСategories", "reqCategories"):  # кирилична + латинська
         try:
@@ -58,14 +60,17 @@ def get_categories():
             continue
     return []
 
+# ---- Продукти з обробкою error=9 ----
 def get_products():
-    for t in ("reqAllProducts", "reqAllProduсts"):  # латинська + кирилична
+    while True:
         try:
-            return api_call(t).get("products", [])
+            return api_call("reqAllProducts").get("products", [])
         except Exception as e:
-            print("DEBUG: fail with", t, e)
-            continue
-    return []
+            if "error': 9" in str(e):
+                print("⚠️ Перевищено ліміт! Чекаю 3700 секунд (1 год + запас)...")
+                time.sleep(3700)
+                continue
+            raise
 
 # ---- XML ----
 def write_xml(categories, products, out_file="products.xml"):
@@ -117,6 +122,7 @@ def write_xml(categories, products, out_file="products.xml"):
     tree.write(out_file, encoding="utf-8", xml_declaration=True)
     print(f"✅ Written {out_file}")
 
+# ---- Main ----
 def main():
     cats = []
     prods = []
