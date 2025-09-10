@@ -131,7 +131,7 @@ def write_xml(categories, products, out_file="products.xml"):
         ET.SubElement(offer, "price").text = f"{calc_price(purchase_price):.2f}"
         ET.SubElement(offer, "currencyId").text = "USD"
 
-        # availability -> available + quantity
+        # available + quantity
         avail = str(prod.get("availability", "")).strip()
         if avail in ("1", "2"):
             ET.SubElement(offer, "available").text = "true"
@@ -168,7 +168,7 @@ def write_xml(categories, products, out_file="products.xml"):
             ET.SubElement(offer, "picture").text = IMG_BASE + filename
             if filename.lower().endswith(".jpg"):
                 base_no_ext = filename[:-4]
-                for i in range(1, 11):  # до 10 додаткових фото
+                for i in range(1, 11):
                     ET.SubElement(offer, "picture").text = f"{IMG_BASE}{base_no_ext}-{i}.jpg"
 
         # description
