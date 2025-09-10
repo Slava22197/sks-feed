@@ -72,6 +72,21 @@ def get_products():
                 continue
             raise
 
+# ---- Розрахунок ціни ----
+def calc_price(p):
+    if p < 0.1: return p * 4.5
+    elif p < 0.3: return p * 3.3
+    elif p < 0.75: return p * 2.7
+    elif p < 2: return p * 1.85
+    elif p < 5: return p * 1.65
+    elif p < 10: return p * 1.55
+    elif p < 20: return p * 1.5
+    elif p < 30: return p * 1.43
+    elif p < 50: return p * 1.38
+    elif p < 75: return p * 1.35
+    elif p < 100: return p * 1.33
+    else: return p * 1.3
+
 # ---- XML ----
 def write_xml(categories, products, out_file="products.xml"):
     yml_date = now_str()
@@ -106,17 +121,62 @@ def write_xml(categories, products, out_file="products.xml"):
         offer = ET.SubElement(offers, "offer", attrib={"id": str(prod.get("productID", ""))})
         ET.SubElement(offer, "name").text = str(prod.get("productNameUA") or prod.get("productName") or "")
 
+        # purchase price + націнка
         raw_price = str(prod.get("priceUSD") or "0").replace(",", ".")
         try:
             purchase_price = float(raw_price)
         except Exception:
             purchase_price = 0.0
         ET.SubElement(offer, "purchase_price").text = f"{purchase_price:.2f}"
-        ET.SubElement(offer, "price").text = f"{purchase_price:.2f}"
+        ET.SubElement(offer, "price").text = f"{calc_price(purchase_price):.2f}"
         ET.SubElement(offer, "currencyId").text = "USD"
 
+        # availability -> available + quantity
         avail = str(prod.get("availability", "")).strip()
-        ET.SubElement(offer, "availability").text = avail
+        if avail in ("1", "2"):
+            ET.SubElement(offer, "available").text = "true"
+        else:
+            ET.SubElement(offer, "available").text = "false"
+
+        qty = "0"
+        if avail == "1":
+            qty = "1"
+        elif avail == "2":
+            qty = "100"
+        ET.SubElement(offer, "quantity").text = qty
+
+        # categoryId
+        if prod.get("categoryID"):
+            cat_raw = str(prod.get("categoryID"))
+            cat_id = cat_raw.split("/")[0] if "/" in cat_raw else cat_raw
+            ET.SubElement(offer, "categoryId").text = cat_id
+
+        # vendor / article / model / weight
+        if prod.get("brand") or prod.get("brandUA"):
+            ET.SubElement(offer, "vendor").text = str(prod.get("brandUA") or prod.get("brand"))
+        if prod.get("article"):
+            ET.SubElement(offer, "article").text = str(prod.get("article"))
+        if prod.get("vendorCode"):
+            ET.SubElement(offer, "model").text = str(prod.get("vendorCode"))
+        if prod.get("weight"):
+            ET.SubElement(offer, "weight").text = str(prod.get("weight"))
+
+        # pictures (основне + додаткові)
+        if prod.get("imageURL"):
+            base_url = prod.get("imageURL").strip()
+            filename = base_url.split("/")[-1]
+            ET.SubElement(offer, "picture").text = IMG_BASE + filename
+            if filename.lower().endswith(".jpg"):
+                base_no_ext = filename[:-4]
+                for i in range(1, 11):  # до 10 додаткових фото
+                    ET.SubElement(offer, "picture").text = f"{IMG_BASE}{base_no_ext}-{i}.jpg"
+
+        # description
+        desc_parts = []
+        if prod.get("amountInPackage"):
+            desc_parts.append(f"Кількість в упаковці: {prod.get('amountInPackage')}")
+        if desc_parts:
+            ET.SubElement(offer, "description").text = " | ".join(desc_parts)
 
     tree = ET.ElementTree(root)
     tree.write(out_file, encoding="utf-8", xml_declaration=True)
